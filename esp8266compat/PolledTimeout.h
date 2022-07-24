@@ -1,6 +1,8 @@
-#ifndef __POLLEDTIMING_H__
-#define __POLLEDTIMING_H__
-
+// https://github.com/dplasa/FTPClientServer/issues/20
+// https://github.com/dplasa/FTPClientServer/pull/19/commits/517f8dbc4f4736fcda2586523499e7d43ddc2578
+// #ifndef __POLLEDTIMING_H__
+// #define __POLLEDTIMING_H__
+#pragma once
 
 /*
  PolledTimeout.h - Encapsulation of a polled Timeout
@@ -286,4 +288,4 @@ using periodicFastNs = polledTimeout::timeoutTemplate<true, YieldPolicy::DoNothi
 
 }//esp8266
 
-#endif
+// #endif

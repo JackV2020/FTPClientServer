@@ -46,10 +46,13 @@ FTPServer::FTPServer(FS &_FSImplementation) : FTPCommon(_FSImplementation)
   aTimeout.resetToNeverExpires();
 }
 
-void FTPServer::begin(const String &uname, const String &pword)
+void FTPServer::begin(const String &uname1, const String &pword1, const String &uname2, const String &pword2)
+//void FTPServer::begin(String credentials[])
 {
-  _FTP_USER = uname;
-  _FTP_PASS = pword;
+  _FTP_USER_1 = uname1;
+  _FTP_PASS_1 = pword1;
+  _FTP_USER_2 = uname2;
+  _FTP_PASS_2 = pword2;
 
   iniVariables();
 
@@ -145,14 +148,15 @@ void FTPServer::handleFTP()
     {
       FTP_DEBUG_MSG("control server got connection from %s:%d",
                     control.remoteIP().toString().c_str(), control.remotePort());
+      FTPaction=F("FTP connection from ") + control.remoteIP().toString() ;
 
       sendMessage_P(220, PSTR("(espFTP " FTP_SERVER_VERSION ")"));
 
-      if (_FTP_USER.length())
+      if ( (_FTP_USER_1.length()) || (_FTP_USER_2.length()) )
       {
         cmdState = cUserId;
       }
-      else if (_FTP_PASS.length())
+      else if (_FTP_PASS_2.length())
       {
         cmdState = cPassword;
       }
@@ -204,7 +208,7 @@ void FTPServer::handleFTP()
       // command was successful, update command state
       if (cmdState == cUserId)
       {
-        if (_FTP_PASS.length())
+        if ( (_FTP_PASS_2.length()) || (_FTP_PASS_2.length()) )
         {
           // wait 10s for PASS command
           aTimeout.reset(10 * 1000);
@@ -238,6 +242,7 @@ void FTPServer::handleFTP()
     {
       cmdState = cInit;
       FTP_DEBUG_MSG("client lost or disconnected");
+      FTPaction=F("FTP disconnected : ")+_FTP_ACTUAL_USER ;
     }
 
     // check for timeout
@@ -270,6 +275,8 @@ void FTPServer::handleFTP()
 void FTPServer::disconnectClient(bool gracious)
 {
   FTP_DEBUG_MSG("Disconnecting client");
+
+  FTPaction=F("FTP disconnecting : ") +_FTP_ACTUAL_USER ;
   abortTransfer();
   if (gracious)
   {
@@ -302,15 +309,23 @@ int8_t FTPServer::processCommand()
   //
   if (FTP_CMD(USER) == command)
   {
-    if (_FTP_USER.length() && (_FTP_USER != parameters))
+    if ( ( ( (_FTP_USER_1.length() && (_FTP_USER_1 != parameters)) ) && 
+           ( (_FTP_USER_2.length() && (_FTP_USER_2 != parameters)) )      )
+         || (parameters == "anonymous") 
+        )
     {
       sendMessage_P(430, PSTR("User not found."));
+      FTPaction=F("FTP User logon user failed : ")+parameters;
       command = 0;
       rc = 0;
     }
     else
     {
       FTP_DEBUG_MSG("USER ok");
+//      FTPaction=F("FTP User connecting : ")+parameters;
+      _FTP_ACTUAL_USER = parameters;
+//      if  (_FTP_ACTUAL_USER == _FTP_USER_1) {FTPaction=F("FTP Admin rights for ")+parameters;} else {FTPaction=F("FTP User rights for ")+parameters;}
+      FTPaction=F("FTP User logon user : ")+parameters;
     }
   }
 
@@ -319,15 +334,24 @@ int8_t FTPServer::processCommand()
   //
   else if (FTP_CMD(PASS) == command)
   {
-    if (_FTP_PASS.length() && (_FTP_PASS != parameters))
+    if ( 
+       (  (_FTP_ACTUAL_USER == _FTP_USER_1 ) && _FTP_PASS_1.length() && (_FTP_PASS_1 != parameters) ) 
+    || (  (_FTP_ACTUAL_USER == _FTP_USER_2 ) && _FTP_PASS_2.length() && (_FTP_PASS_2 != parameters) ) 
+    || (  (_FTP_ACTUAL_USER == "ftp" )       && (String("ftp") == parameters) ) 
+    )
     {
       sendMessage_P(430, PSTR("Password invalid."));
+//      FTPaction=F("FTP Password invalid");
+      FTPaction=F("FTP User logon password failed : ")+parameters;
       command = 0;
       rc = 0;
+    disconnectClient();
+      rc = -1;
     }
     else
     {
       FTP_DEBUG_MSG("PASS ok");
+      FTPaction=F("FTP User logon password ok : ")+_FTP_ACTUAL_USER;
     }
   }
 
@@ -505,17 +529,20 @@ int8_t FTPServer::processCommand()
       sendMessage_P(501, PSTR("No file name"));
     else
     {
-      if (!THEFS.exists(path))
-      {
-        sendMessage_P(550, PSTR("Delete operation failed, file '%s' not found."), path.c_str());
+//      if (!THEFS.exists(path))
+      if (!THEFS.exists(path) || ( (_FTP_ACTUAL_USER == _FTP_USER_2) && (!FTPUser2WriteAccess) )) {
+        sendMessage_P(550, PSTR("Delete operation failed or not allowed for '%s'."), path.c_str());
+        FTPaction=F("FTP Delete rejected for : ")+path;
       }
       else if (THEFS.remove(path))
       {
         sendMessage_P(250, PSTR("Delete operation successful."));
+        FTPaction=F("FTP Deleted file ") + path;
       }
       else
       {
         sendMessage_P(450, PSTR("Delete operation failed."));
+        FTPaction=F("FTP Deleted failed for : ") + path;
       }
     }
   }
@@ -546,6 +573,7 @@ int8_t FTPServer::processCommand()
         path.remove(dashPos);
       }
       FTP_DEBUG_MSG("Listing content of '%s'", path.c_str());
+      FTPaction=F("FTP Listing content of ") + path;
 #if (defined ESP8266)
       Dir dir = THEFS.openDir(path);
       while (dir.next())
@@ -657,6 +685,7 @@ int8_t FTPServer::processCommand()
           if (allocateBuffer())
           {
             FTP_DEBUG_MSG("Sending file '%s' (%lu bytes)", path.c_str(), fs);
+            FTPaction=F("FTP Sending file ") + path;
             sendMessage_P(150, PSTR("%lu bytes to download"), fs);
           }
           else
@@ -674,9 +703,11 @@ int8_t FTPServer::processCommand()
   //
   else if (FTP_CMD(STOR) == command)
   {
-    if (parameters.length() == 0)
+//    if (parameters.length() == 0)
+    if ( (parameters.length() == 0) || ( (_FTP_ACTUAL_USER == _FTP_USER_2) && (!FTPUser2WriteAccess) ))
     {
-      sendMessage_P(501, PSTR("No file name."));
+      sendMessage_P(501, PSTR("No file name or not allowed."));
+      FTPaction=F("FTP Receiving file not allowed for ") + path;
     }
     else
     {
@@ -690,7 +721,7 @@ int8_t FTPServer::processCommand()
       }
       if (!file)
       {
-        sendMessage_P(451, PSTR("Cannot open/create \"%s\""), path.c_str());
+        sendMessage_P(534, PSTR("Cannot open/create \"%s\""), path.c_str());
       }
       else
       {
@@ -709,6 +740,7 @@ int8_t FTPServer::processCommand()
           if (allocateBuffer())
           {
             FTP_DEBUG_MSG("Receiving file '%s' => %s", parameters.c_str(), path.c_str());
+            FTPaction=F("FTP Receiving file ") + path;
             sendMessage_P(150, PSTR("Connected to port %d"), dataPort);
           }
           else
@@ -733,6 +765,7 @@ int8_t FTPServer::processCommand()
     if (THEFS.mkdir(path))
     {
       sendMessage_P(257, PSTR("\"%s\" created."), path.c_str());
+      FTPaction=F("FTP Created directory ") + path;
     }
     else
     {
@@ -768,6 +801,7 @@ int8_t FTPServer::processCommand()
     {
       THEFS.rmdir(path);
       sendMessage_P(250, PSTR("Remove directory operation successful."));
+      FTPaction=F("FTP Removed directory ") + path;
     }
 #endif
   }
@@ -780,11 +814,15 @@ int8_t FTPServer::processCommand()
       sendMessage_P(501, PSTR("No file name"));
     else
     {
-      if (!THEFS.exists(path))
-        sendMessage_P(550, PSTR("File \"%s\" not found."), path.c_str());
+//      if (!THEFS.exists(path))
+      if (!THEFS.exists(path) || ( (_FTP_ACTUAL_USER == _FTP_USER_2) && (!FTPUser2WriteAccess) )) {
+        sendMessage_P(550, PSTR("File \"%s\" not found or not allowed."), path.c_str());
+        FTPaction=F("FTP Rename From rejected for : ")+path;
+      }
       else
       {
         sendMessage_P(350, PSTR("RNFR accepted - file \"%s\" exists, ready for destination"), path.c_str());
+        FTPaction=F("FTP Rename From accepted for : ")+path;
         rnFrom = path;
       }
     }
@@ -803,10 +841,13 @@ int8_t FTPServer::processCommand()
     else
     {
       FTP_DEBUG_MSG("Renaming '%s' to '%s'", rnFrom.c_str(), path.c_str());
-      if (THEFS.rename(rnFrom, path))
+      if (THEFS.rename(rnFrom, path)) {
         sendMessage_P(250, PSTR("File successfully renamed or moved"));
+        FTPaction=F("FTP Renamed ")+rnFrom+F(" To ")+path;
+      } 
       else
         sendMessage_P(451, PSTR("Rename/move failure."));
+        FTPaction=F("FTP Rename failed ")+rnFrom+F(" to ")+path;
     }
     rnFrom.clear();
   }

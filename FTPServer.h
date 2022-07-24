@@ -38,9 +38,10 @@ public:
   // given FS object, e.g. SPIFFS or LittleFS
   FTPServer(FS &_FSImplementation);
 
-  // starts the FTP server with username and password,
-  // either one can be empty to enable anonymous ftp
-  void begin(const String &uname, const String &pword);
+  // start the FTP server with 0,1 or 2 usernames and passwords,
+  // default access is anonymous (which is without a password)
+  // account "ftp" with password "ftp" is disabled in the code.
+  void begin( const String &uname1="anonymous", const String &pword1="", const String &uname2="ftp", const String &pword2="ftp");
 
   // stops the FTP server
   void stop();
@@ -48,6 +49,9 @@ public:
   // needs to be called frequently (e.g. in loop() )
   // to process ftp requests
   void handleFTP();
+
+  String FTPaction="";
+  bool FTPUser2WriteAccess=false;
 
 private:
   enum internalState
@@ -81,8 +85,11 @@ private:
 
   // server specific
   bool dataPassiveConn = true; // PASV (passive) mode is our default
-  String _FTP_USER;            // usename
-  String _FTP_PASS;            // password
+  String _FTP_USER_1;          // username
+  String _FTP_PASS_1;          // password
+  String _FTP_USER_2;          // username
+  String _FTP_PASS_2;          // password
+  String _FTP_ACTUAL_USER;     // username
   uint32_t command;            // numeric command code of command sent by the client
   String cmdLine;              // command line as read from client
   String cmdString;            // command as textual representation

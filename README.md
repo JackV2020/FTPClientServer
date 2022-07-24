@@ -1,3 +1,28 @@
+#### Notes
+
+I found this library at https://github.com/dplasa/FTPClientServer.
+
+I had an issue compiling for ESP8266 (Wemos) and found my issue in the same github :
+<br> https://github.com/dplasa/FTPClientServer/issues/20 
+<br> with a suggested solution in the same github :
+<br> https://github.com/dplasa/FTPClientServer/pull/19/commits/517f8dbc4f4736fcda2586523499e7d43ddc2578
+<br>I changed /esp8266compat/PolledTimeout.h based on the solution and it solved the issue.
+
+
+   I added some security functionality to the server side of the library :
+   - 2nd FTP user with default access restricted to readonly.
+   - bool property FTPUser2WriteAccess enables/disables write access for 2nd user
+   - anonymous ftp is not allowed
+   - simple user ftp with password ftp is not allowed
+   - and
+   - String property FTPaction can be used to show what is going on in the server
+
+I also added an extra example examples/FTPServerSample/LittleFSSample2Users which shows the use of the extra functionality.
+
+Pay attention to read the section below on <a href="#limitations">Limitations</a>. This gets the FTP client FileZilla working.
+
+The rest of this README.md is unchanged.
+
 # FTPServer and FTPClient
 Simple FTP Server and Client for the esp8266/esp32 with SPIFFS and LittleFS support.
 
@@ -15,6 +40,8 @@ The FTP Client is pretty much straight forward. It can upload (put, STOR) a file
 * Client supports directories with either filesystem 
   since both FS will just auto-create missing Directories
   when accessing files.
+
+<p id="#limitations"></p>
 
 ## Limitations
 * Server only allows **one** ftp control and **one** data connection at a time. You need to setup Filezilla (or other clients) to respect that, i.e. only allow **1** connection. (In FileZilla go to File/Site Manager then select your site. In Transfer Settings, check "Limit number of simultaneous connections" and set the maximum to 1.) This limitation is also the reason why FuseFS based clients (e.g. curlftpfs) seem to work (i.e. listing directories) but will fail on file operations as they try to open a second control connection for that.
