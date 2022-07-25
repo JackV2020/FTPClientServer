@@ -32,10 +32,13 @@
 #include <ESP8266WiFi.h>
 #include <LittleFS.h>
 #include <FTPServer.h>
-#define BAUDRATE 74880
+//#define BAUDRATE 74880
+#define BAUDRATE 115200
 
-const char *ssid PROGMEM = "YOUR_SSID";
-const char *password PROGMEM = "YOUR_PASS";
+//const char *ssid PROGMEM = "YOUR_SSID";
+//const char *password PROGMEM = "YOUR_PASS";
+const char *ssid PROGMEM = "No6gast";
+const char *password PROGMEM = "1234567890";
 
 // tell the FtpServer to use LittleFS
 FTPServer ftpSrv(LittleFS);
@@ -119,25 +122,27 @@ void loop(void)
   }
   else if (action == list)
   {
+    uint16_t dircount=0, filecount=0; 
+    uint32_t bytecount=0;
     Serial.printf_P(PSTR("Listing contents...\n"));
-    uint16_t fileCount = listDir("", "/");
-    Serial.printf_P(PSTR("%d files/dirs total\n"), fileCount);
+    listDir("", "/",dircount,filecount,bytecount);
+    Serial.printf_P(PSTR("Total of %d files %d subdirs %d bytes\\nn"), filecount, dircount, bytecount);
     action = show;
   }
 }
 
-uint16_t listDir(String indent, String path)
+void listDir(String indent, String path,uint16_t & dirCount, uint16_t & fileCount, uint32_t & byteCount )
 {
-  uint16_t dirCount = 0;
   Dir dir = LittleFS.openDir(path);
   while (dir.next())
   {
-    ++dirCount;
     if (dir.isDirectory())
     {
+      ++dirCount;
       Serial.printf_P(PSTR("%s%s [Dir]\n"), indent.c_str(), dir.fileName().c_str());
-      dirCount += listDir(indent + "  ", path + dir.fileName() + "/");
+      listDir(indent + "  ", path + dir.fileName() + "/", dirCount, fileCount, byteCount);
     } else {
+      ++fileCount;
       Serial.printf_P(PSTR("%s%-25s"), indent.c_str(), dir.fileName().c_str());
 
       struct tm * tmstruct;
@@ -149,10 +154,9 @@ uint16_t listDir(String indent, String path)
 
       time_t lw = file.getLastWrite();
       tmstruct = localtime(&lw);
-      Serial.printf(" # Changed : %d-%02d-%02d %02d:%02d:%02d   (%ld Bytes) \n", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec, (uint32_t)dir.fileSize());
-
+      Serial.printf(" # Changed : %d-%02d-%02d %02d:%02d:%02d   (%ld Bytes)\n", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec, (uint32_t)dir.fileSize());
+      byteCount = byteCount + (uint32_t)dir.fileSize();
       file.close();
     }
   }
-  return dirCount;
 }
