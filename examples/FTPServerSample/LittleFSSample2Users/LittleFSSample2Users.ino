@@ -126,7 +126,7 @@ void loop(void)
     uint32_t bytecount=0;
     Serial.printf_P(PSTR("Listing contents...\n"));
     listDir("", "/",dircount,filecount,bytecount);
-    Serial.printf_P(PSTR("Total of %d files %d subdirs %d bytes\\nn"), filecount, dircount, bytecount);
+    Serial.printf_P(PSTR("Total of %d files %d subdirs %d bytes\n\n"), filecount, dircount, bytecount);
     action = show;
   }
 }
