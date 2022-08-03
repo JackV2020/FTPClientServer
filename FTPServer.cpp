@@ -242,7 +242,7 @@ void FTPServer::handleFTP()
     {
       cmdState = cInit;
       FTP_DEBUG_MSG("client lost or disconnected");
-      FTPaction=F("FTP disconnected : ")+_FTP_ACTUAL_USER ;
+      FTPaction=F("FTP User disconnected : ")+_FTP_ACTUAL_USER ;
     }
 
     // check for timeout
@@ -275,16 +275,16 @@ void FTPServer::handleFTP()
 void FTPServer::disconnectClient(bool gracious)
 {
   FTP_DEBUG_MSG("Disconnecting client");
-
-  FTPaction=F("FTP disconnecting : ") +_FTP_ACTUAL_USER ;
   abortTransfer();
   if (gracious)
   {
     sendMessage_P(221, PSTR("Goodbye."));
+    FTPaction=F("FTP User goodbye to : ") +_FTP_ACTUAL_USER ;
   }
   else
   {
     sendMessage_P(231, PSTR("Service terminated."));
+  FTPaction=F("FTP User service terminated for : ") +_FTP_ACTUAL_USER ;
   }
   control.stop();
 }
@@ -351,7 +351,7 @@ int8_t FTPServer::processCommand()
     else
     {
       FTP_DEBUG_MSG("PASS ok");
-      FTPaction=F("FTP User logon password ok : ")+_FTP_ACTUAL_USER;
+      FTPaction=F("FTP User logon password ok for : ")+_FTP_ACTUAL_USER;
     }
   }
 
@@ -817,12 +817,12 @@ int8_t FTPServer::processCommand()
 //      if (!THEFS.exists(path))
       if (!THEFS.exists(path) || ( (_FTP_ACTUAL_USER == _FTP_USER_2) && (!FTPUser2WriteAccess) )) {
         sendMessage_P(550, PSTR("File \"%s\" not found or not allowed."), path.c_str());
-        FTPaction=F("FTP Rename From rejected for : ")+path;
+        FTPaction=F("FTP Rename rejected for : ")+path;
       }
       else
       {
         sendMessage_P(350, PSTR("RNFR accepted - file \"%s\" exists, ready for destination"), path.c_str());
-        FTPaction=F("FTP Rename From accepted for : ")+path;
+        FTPaction=F("FTP Rename for : ")+path;
         rnFrom = path;
       }
     }
@@ -836,18 +836,18 @@ int8_t FTPServer::processCommand()
       sendMessage_P(503, PSTR("Need RNFR before RNTO"));
     else if (parameters.length() == 0)
       sendMessage_P(501, PSTR("No file name"));
-    else if (THEFS.exists(path))
+    else if (THEFS.exists(path)) {
       sendMessage_P(553, PSTR("\"%s\" already exists."), parameters.c_str());
-    else
-    {
+      FTPaction=F("FTP Rename failed already exists : ")+path;
+    } else {
       FTP_DEBUG_MSG("Renaming '%s' to '%s'", rnFrom.c_str(), path.c_str());
       if (THEFS.rename(rnFrom, path)) {
         sendMessage_P(250, PSTR("File successfully renamed or moved"));
-        FTPaction=F("FTP Renamed ")+rnFrom+F(" To ")+path;
-      } 
-      else
+        FTPaction=F("FTP Renamed ")+rnFrom+F(" to ")+path;
+      } else {
         sendMessage_P(451, PSTR("Rename/move failure."));
         FTPaction=F("FTP Rename failed ")+rnFrom+F(" to ")+path;
+      }
     }
     rnFrom.clear();
   }
