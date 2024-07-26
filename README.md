@@ -1,27 +1,49 @@
-#### Notes
+# FTPClientServer
 
-I found this library at https://github.com/dplasa/FTPClientServer.
+I forked and changed <https://github.com/dplasa/FTPClientServer> which came with the license you can find in LICENSE.
 
-I had an issue compiling for ESP8266 (Wemos) and found my issue in the same github :
-<br> https://github.com/dplasa/FTPClientServer/issues/20 
-<br> with a suggested solution in the same github :
-<br> https://github.com/dplasa/FTPClientServer/pull/19/commits/517f8dbc4f4736fcda2586523499e7d43ddc2578
-<br>I changed /esp8266compat/PolledTimeout.h based on the solution and it solved the issue.
+Please note that the licensing terms of that library or the original library <https://github.com/nailbuster/esp8266FTPServer> may change in the future, which could affect the availability or cost of this library.
 
+<hr>
 
-   I added some security functionality to the server side of the library :
-   - 2nd FTP user with default access restricted to readonly.
-   - bool property FTPUser2WriteAccess enables/disables write access for 2nd user
-   - anonymous ftp is not allowed
-   - simple user ftp with password ftp is not allowed
-   - and
-   - String property FTPaction can be used to show what is going on in the server
+About my changes....:
 
-I also added an extra example examples/FTPServerSample/LittleFSSample2Users which shows the use of the extra functionality.
+[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
+
+## License
+
+This project is licensed under the terms of the Unlicense.
+<br>For more details, please refer to [UNLICENSE.md](UNLICENSE.md).
+<br>For more information, please refer to <http://unlicense.org>.
+
+### Changes made since I forked
+
+I had an issue compiling for ESP8266 (Wemos) and found my issue in the same repository:
+<br><https://github.com/dplasa/FTPClientServer/issues/20>
+<br>with a suggested solution in the same repository: 
+<br><https://github.com/dplasa/FTPClientServer/pull/19>
+<br>I forked and changed /esp8266compat/PolledTimeout.h based on the suggestion which solved the issue.
+<br><br>
+
+Changes:
+<br>- added 2nd FTP user with default access restricted to readonly
+<br>- added bool property FTPUser2WriteAccess enables/disables write access for 2nd user
+<br>- anonymous ftp is not allowed
+<br>- simple user ftp with password ftp is not allowed ( >> change this in LittleFSSample when testing << ) 
+<br>- added String property FTPaction can be used to show what is going on in the server
+<br>- the code needed a change because 'a lower level library renamed available to accept'
+<br>- added support for XMKD and XRMD so Windows command line can use mkdir and rmdir
+<br>- added an extra folder in the library named scripts with examples of Linux and Windows scripts
+
+Example examples/FTPServerSample/LittleFSSample2Users shows the use of extra functionality.
 
 Pay attention to read the section below on <a href="#limitations">Limitations</a>. This gets the FTP client FileZilla working.
+<br>I have no issues using the standard ftp command on Linux.
+<br>When using the ftp command on Windows the first command before opening the connection needs to be passive to set the mode to passive.
 
-The rest of this README.md is unchanged.
+The rest of the README.md below is unchanged.
+
+<hr>
 
 # FTPServer and FTPClient
 Simple FTP Server and Client for the esp8266/esp32 with SPIFFS and LittleFS support.

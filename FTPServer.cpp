@@ -1,4 +1,6 @@
 /*
+ * JackV2020 change 2024-07-19 : replace available by accept because 
+ *   lower level library renamed available to accept
  * FTP Server for ESP8266/ESP32
  * based on FTP Serveur for Arduino Due and Ethernet shield (W5100) or WIZ820io (W5200)
  * based on Jean-Michel Gallego's work
@@ -134,7 +136,7 @@ void FTPServer::handleFTP()
   {
     if (controlServer.hasClient())
     {
-      control = controlServer.available();
+      control = controlServer.accept();
 
       // wait 10s for login command
       aTimeout.reset(10 * 1000);
@@ -754,9 +756,9 @@ int8_t FTPServer::processCommand()
   }
 
   //
-  //  MKD - Make Directory
+  //  MKD - Make Directory (XMKD Windows ftp)
   //
-  else if (FTP_CMD(MKD) == command)
+  else if ( (FTP_CMD(MKD) == command) || (FTP_CMD(XMKD) == command) )
   {
 #if (defined esp8266FTPServer_SPIFFS)
     sendMessage_P(550, "Create directory operation failed."); //not support on SPIFFS
@@ -775,9 +777,9 @@ int8_t FTPServer::processCommand()
   }
 
   //
-  //  RMD - Remove a Directory
+  //  RMD - Remove a Directory  (XRMD Windows ftp)
   //
-  else if (FTP_CMD(RMD) == command)
+  else if ( (FTP_CMD(RMD) == command) || (FTP_CMD(XRMD) == command) )
   {
 #if (defined esp8266FTPServer_SPIFFS)
     sendMessage_P(550, "Remove directory operation failed."); //not support on SPIFFS
@@ -949,7 +951,7 @@ int8_t FTPServer::dataConnect()
       if (dataServer.hasClient())
       {
         data.stop();
-        data = dataServer.available();
+        data = dataServer.accept();
         FTP_DEBUG_MSG("Got incoming (passive) data connection from %s:%u", data.remoteIP().toString().c_str(), data.remotePort());
       }
       else
